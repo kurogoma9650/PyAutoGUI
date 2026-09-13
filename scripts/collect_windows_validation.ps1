@@ -112,6 +112,29 @@ $smoke = Invoke-HarnessCommand -Name "run phrase_collector.smoke" -Arguments @("
 $phase8Root = Join-Path $bundle "phase8_artifacts"
 $phase8 = Invoke-HarnessCommand -Name "run phrase_collector.phase8_review" -Arguments @("run", "phrase_collector.phase8_review", "--artifacts", $phase8Root) -OutputFile (Join-Path $bundle "run_phase8_review.txt")
 
+$postCommitSha = (& git rev-parse HEAD).Trim()
+$postTreeSha = (& git rev-parse 'HEAD^{tree}').Trim()
+$postDirty = @(& git status --porcelain)
+$postExeHash = (Get-FileHash -LiteralPath $resolvedExe -Algorithm SHA256).Hash
+$identityIntegrity = if (
+    $postCommitSha -eq $commitSha -and
+    $postTreeSha -eq $treeSha -and
+    $postDirty.Count -eq 0 -and
+    $postExeHash -eq $exeHash.Hash
+) { "PASS" } else { "ERROR" }
+
+$integrity = [ordered]@{
+    status                 = $identityIntegrity
+    initial_commit_sha     = $commitSha
+    final_commit_sha       = $postCommitSha
+    initial_tree_sha       = $treeSha
+    final_tree_sha         = $postTreeSha
+    final_worktree_clean   = ($postDirty.Count -eq 0)
+    initial_exe_sha256     = $exeHash.Hash
+    final_exe_sha256       = $postExeHash
+}
+$integrity | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $bundle "identity_integrity.json") -Encoding utf8
+
 $gateB = $doctor.status
 $gateC = if ($capture.exit_code -eq 0 -and (Test-Path -LiteralPath $capturePath)) { "PASS" } else { $capture.status }
 $gateI = $smoke.status
@@ -119,6 +142,7 @@ $gateI = $smoke.status
 $validation = [ordered]@{
     schema_version = 1
     identity_file  = "identity.json"
+    identity_integrity = $identityIntegrity
     commands       = @($doctor, $listing, $capture, $smoke, $phase8)
     gates          = [ordered]@{
         B = [ordered]@{ status = $gateB; basis = "doctor --app $App" }
@@ -144,6 +168,7 @@ This review is bound to the exact tested identity below. Do not reuse it for ano
 - Tested tree SHA: `$treeSha`
 - PhraseCollector path: `$resolvedExe`
 - PhraseCollector SHA-256: `$($exeHash.Hash)`
+- Identity integrity: **$identityIntegrity**
 - Gate B: **$gateB**
 - Gate C: **$gateC**
 - Gate I: **$gateI**
@@ -186,6 +211,7 @@ $summary = @"
 - Worktree clean: `true`
 - Executable: `$resolvedExe`
 - Executable SHA-256: `$($exeHash.Hash)`
+- Identity integrity after validation: **$identityIntegrity**
 
 ## Gates
 
@@ -205,16 +231,18 @@ $summary = @"
 
 Phase 8 automation status: **$($phase8.status)**. This is evidence collection only and cannot set a Human Review test to PASS.
 
-The PR must remain Draft/unmerged until Gate B/C/I and HR-001/002/003 have all been explicitly reviewed and the finalization step reports eligibility.
+The PR must remain Draft/unmerged until identity integrity, Gate B/C/I, and HR-001/002/003 have all been explicitly reviewed and the finalization step reports eligibility.
 "@
 $summary | Set-Content -LiteralPath (Join-Path $bundle "SUMMARY.md") -Encoding utf8
 
 Write-Host "`nValidation bundle: $bundle"
+Write-Host "Identity integrity: $identityIntegrity"
 Write-Host "Gate B: $gateB"
 Write-Host "Gate C: $gateC"
 Write-Host "Gate I: $gateI"
 Write-Host "Human Review: PENDING (HR-001/HR-002/HR-003)"
 
+if ($identityIntegrity -ne "PASS") { exit 5 }
 if (@($gateB, $gateC, $gateI) -contains "ERROR") { exit 5 }
 if (@($gateB, $gateC, $gateI) -contains "BLOCKED") { exit 3 }
 if (@($gateB, $gateC, $gateI) -contains "FAIL") { exit 4 }
