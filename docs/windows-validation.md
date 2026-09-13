@@ -15,6 +15,8 @@ Every validation bundle must include:
 
 A dirty worktree is rejected by the collector because the tested tree SHA would not fully identify the code being exercised.
 
+The collector re-checks the repository commit/tree, worktree cleanliness, and executable SHA-256 after all validation commands finish. `identity_integrity.json` must be `PASS`; any mid-run change invalidates review eligibility even if individual GUI gates passed.
+
 ## Required command evidence
 
 The following command outputs are captured into the same bundle:
@@ -52,7 +54,7 @@ The collection script always initializes them as `PENDING`. A reviewer must ente
   -ExePath "C:\ArrangeMaster\build\b\src\authoring\Debug\PhraseCollector.exe"
 ```
 
-The script prints the created validation bundle path. Inspect its screenshots, command logs, `SUMMARY.md`, and `HUMAN_REVIEW.md`, then record the Human Review judgments:
+The script prints the created validation bundle path. Inspect its screenshots, command logs, `SUMMARY.md`, `identity_integrity.json`, and `HUMAN_REVIEW.md`, then record the Human Review judgments:
 
 ```powershell
 .\scripts\finalize_windows_validation.ps1 `
@@ -68,4 +70,4 @@ The script prints the created validation bundle path. Inspect its screenshots, c
 
 Finalization writes `human_review.json`, `final_review.json`, and `FINAL_REVIEW.md` into the same bundle.
 
-`ELIGIBLE_FOR_READY_REVIEW` is emitted only when Gate B/C/I and HR-001/002/003 are all PASS. It does not automatically alter the GitHub pull request. The PR must remain Draft and unmerged until the exact tested identity and evidence bundle have been reviewed.
+`ELIGIBLE_FOR_READY_REVIEW` is emitted only when identity integrity, Gate B/C/I, and HR-001/002/003 are all PASS. It does not automatically alter the GitHub pull request. The PR must remain Draft and unmerged until the exact tested identity and evidence bundle have been reviewed.
