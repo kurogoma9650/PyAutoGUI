@@ -29,23 +29,25 @@ $ErrorActionPreference = "Stop"
 $bundlePath = (Resolve-Path -LiteralPath $Bundle).Path
 $identityPath = Join-Path $bundlePath "identity.json"
 $validationPath = Join-Path $bundlePath "validation.json"
+$integrityPath = Join-Path $bundlePath "identity_integrity.json"
 
-if (-not (Test-Path -LiteralPath $identityPath)) {
-    throw "identity.json is missing from the validation bundle."
-}
-if (-not (Test-Path -LiteralPath $validationPath)) {
-    throw "validation.json is missing from the validation bundle."
+foreach ($requiredPath in @($identityPath, $validationPath, $integrityPath)) {
+    if (-not (Test-Path -LiteralPath $requiredPath)) {
+        throw "Required validation evidence is missing: $requiredPath"
+    }
 }
 
 $identity = Get-Content -LiteralPath $identityPath -Raw | ConvertFrom-Json
 $validation = Get-Content -LiteralPath $validationPath -Raw | ConvertFrom-Json
+$integrity = Get-Content -LiteralPath $integrityPath -Raw | ConvertFrom-Json
 
+$identityIntegrity = [string]$integrity.status
 $gateB = [string]$validation.gates.B.status
 $gateC = [string]$validation.gates.C.status
 $gateI = [string]$validation.gates.I.status
 $allGatesPass = ($gateB -eq "PASS" -and $gateC -eq "PASS" -and $gateI -eq "PASS")
 $allHumanPass = ($HR001 -eq "PASS" -and $HR002 -eq "PASS" -and $HR003 -eq "PASS")
-$eligible = ($allGatesPass -and $allHumanPass)
+$eligible = ($identityIntegrity -eq "PASS" -and $allGatesPass -and $allHumanPass)
 
 $human = [ordered]@{
     schema_version    = 1
@@ -77,19 +79,28 @@ $human = [ordered]@{
 }
 $human | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $bundlePath "human_review.json") -Encoding utf8
 
-$finalStatus = if ($eligible) { "ELIGIBLE_FOR_READY_REVIEW" } elseif (-not $allGatesPass) { "GATES_NOT_PASS" } else { "HUMAN_REVIEW_NOT_PASS" }
+$finalStatus = if ($eligible) {
+    "ELIGIBLE_FOR_READY_REVIEW"
+} elseif ($identityIntegrity -ne "PASS") {
+    "IDENTITY_INTEGRITY_ERROR"
+} elseif (-not $allGatesPass) {
+    "GATES_NOT_PASS"
+} else {
+    "HUMAN_REVIEW_NOT_PASS"
+}
 
 $final = [ordered]@{
-    schema_version     = 1
-    finalized_at       = (Get-Date).ToString("o")
-    tested_commit_sha  = $identity.tested_commit_sha
-    tested_tree_sha    = $identity.tested_tree_sha
-    executable_sha256  = $identity.executable.sha256
-    gates              = [ordered]@{ B = $gateB; C = $gateC; I = $gateI }
-    human_review       = [ordered]@{ "HR-001" = $HR001; "HR-002" = $HR002; "HR-003" = $HR003 }
+    schema_version        = 1
+    finalized_at          = (Get-Date).ToString("o")
+    tested_commit_sha     = $identity.tested_commit_sha
+    tested_tree_sha       = $identity.tested_tree_sha
+    executable_sha256     = $identity.executable.sha256
+    identity_integrity    = $identityIntegrity
+    gates                 = [ordered]@{ B = $gateB; C = $gateC; I = $gateI }
+    human_review          = [ordered]@{ "HR-001" = $HR001; "HR-002" = $HR002; "HR-003" = $HR003 }
     ready_review_eligible = $eligible
-    status             = $finalStatus
-    note               = "This file does not change PR state. Ready-for-review and merge remain explicit repository actions."
+    status                = $finalStatus
+    note                  = "This file does not change PR state. Ready-for-review and merge remain explicit repository actions."
 }
 $final | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $bundlePath "final_review.json") -Encoding utf8
 
@@ -102,6 +113,7 @@ $markdown = @"
 - Tree SHA: `$($identity.tested_tree_sha)`
 - PhraseCollector: `$($identity.executable.path)`
 - PhraseCollector SHA-256: `$($identity.executable.sha256)`
+- Identity integrity: **$identityIntegrity**
 - Reviewer: `$Reviewer`
 
 ## Gate results
@@ -135,5 +147,8 @@ Write-Host "Ready-for-review eligible: $eligible"
 Write-Host "Bundle: $bundlePath"
 
 if ($eligible) { exit 0 }
+if ($identityIntegrity -ne "PASS") { exit 5 }
+if (@($gateB, $gateC, $gateI) -contains "ERROR") { exit 5 }
+if (@($gateB, $gateC, $gateI) -contains "ABORTED") { exit 130 }
 if (@($gateB, $gateC, $gateI, $HR001, $HR002, $HR003) -contains "BLOCKED") { exit 3 }
 exit 4
