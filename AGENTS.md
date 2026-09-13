@@ -17,3 +17,14 @@ This repository implements a reusable Windows GUI automation harness.
 - Do not add OpenAI API or other external AI API dependencies.
 - Keep `pyautogui.FAILSAFE = True`.
 - Do not silently continue when the interactive desktop, target window, or foreground safety check is unavailable.
+
+## Review-grade Windows validation rules
+
+- Final Windows validation must run from a clean worktree so the tested tree SHA uniquely identifies the code under test.
+- Bind one evidence bundle to the tested commit SHA, tested tree SHA, `PhraseCollector.exe` absolute path, and executable SHA-256.
+- Preserve raw `doctor`, `list`, `capture`, smoke-run, and Phase 8 evidence-run outputs in that same bundle.
+- Record Gate B, Gate C, and Gate I separately; never infer a missing gate from another successful command.
+- HR-001 UX / 操作性, HR-002 Musical Readability / 音楽的可読性, and HR-003 Visual Design require explicit Human Review judgments.
+- Automation, screenshots, and evidence generation must never set HR-001/002/003 to PASS.
+- The PR must remain Draft and unmerged until Gate B/C/I and HR-001/002/003 are all explicitly reviewed against the same tested identity.
+- `ELIGIBLE_FOR_READY_REVIEW` is only an eligibility result; scripts must not automatically mark a PR Ready or merge it.
