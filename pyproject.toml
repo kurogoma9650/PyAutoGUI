@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kurogoma-gui-harness"
+version = "0.1.0"
+description = "Reusable Windows GUI automation harness using PyAutoGUI, pywinauto, and MSS"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "mss>=9.0",
+  "Pillow>=10.0",
+  "psutil>=5.9",
+  "pyautogui>=0.9.54",
+  "pywinauto>=0.6.9",
+]
+
+[project.optional-dependencies]
+vision = ["opencv-python>=4.10"]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[project.scripts]
+gui-harness = "gui_harness.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+gui_harness = ["profiles/*.toml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "gui: requires an interactive Windows desktop",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
