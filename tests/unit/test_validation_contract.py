@@ -9,6 +9,10 @@ def test_collector_binds_review_identity() -> None:
         "tested_commit_sha",
         "tested_tree_sha",
         "Get-FileHash",
+        "identity_integrity",
+        "initial_exe_sha256",
+        "final_exe_sha256",
+        "final_worktree_clean",
         "doctor",
         "list",
         "capture",
@@ -22,8 +26,10 @@ def test_collector_binds_review_identity() -> None:
         assert token in text
 
 
-def test_finalizer_never_changes_pr_state() -> None:
+def test_finalizer_requires_integrity_and_never_changes_pr_state() -> None:
     text = Path("scripts/finalize_windows_validation.ps1").read_text(encoding="utf-8")
+    assert "identity_integrity.json" in text
+    assert "IDENTITY_INTEGRITY_ERROR" in text
     assert "ELIGIBLE_FOR_READY_REVIEW" in text
     assert "mark ready" not in text.lower()
     assert "gh pr ready" not in text.lower()
