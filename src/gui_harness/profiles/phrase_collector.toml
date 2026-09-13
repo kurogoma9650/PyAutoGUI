@@ -1,0 +1,3 @@
+[application]
+process_name = "PhraseCollector.exe"
+title_regex = "^PhraseCollector - Phrase Authoring & Review Studio$"
