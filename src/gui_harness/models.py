@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 
-class RunStatus(str, Enum):
+class RunStatus(StrEnum):
     PASS = "PASS"
     FAIL = "FAIL"
     BLOCKED = "BLOCKED"
@@ -13,7 +13,7 @@ class RunStatus(str, Enum):
     ABORTED = "ABORTED"
 
 
-class CoordinateSpace(str, Enum):
+class CoordinateSpace(StrEnum):
     SCREEN = "screen"
     WINDOW = "window"
     CLIENT = "client"
