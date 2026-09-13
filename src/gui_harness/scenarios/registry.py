@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from ..errors import ConfigurationError
 from .base import Scenario
 from .phrase_collector.phase8_review import PhraseCollectorPhase8ReviewScenario
 from .phrase_collector.smoke import PhraseCollectorSmokeScenario
@@ -18,4 +19,4 @@ def create_scenario(name: str) -> Scenario:
     try:
         return _SCENARIOS[name]()
     except KeyError as exc:
-        raise KeyError(f"Unknown scenario: {name}") from exc
+        raise ConfigurationError(f"Unknown scenario: {name}") from exc

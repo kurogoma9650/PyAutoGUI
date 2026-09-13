@@ -69,8 +69,8 @@ class RunContext:
             )
         if isinstance(selector, RelativePoint):
             return ScreenPoint(
-                target.client_rect.left + round(target.client_rect.width * selector.x),
-                target.client_rect.top + round(target.client_rect.height * selector.y),
+                target.client_rect.left + int(target.client_rect.width * selector.x),
+                target.client_rect.top + int(target.client_rect.height * selector.y),
             )
         if isinstance(selector, UIASelector):
             return self.uia.resolve(
